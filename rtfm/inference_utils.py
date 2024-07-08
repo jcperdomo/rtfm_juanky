@@ -6,6 +6,7 @@ from typing import List, Optional, Literal, Any
 import numpy as np
 import pandas as pd
 import transformers
+import torch
 from datasets.utils.logging import (
     disable_progress_bar,
     enable_progress_bar,
@@ -51,6 +52,7 @@ def infer_on_example(
     target_choices: List[Any],
     labeled_examples: Optional[pd.DataFrame] = None,
     max_new_tokens: Optional[int] = None,
+    embed: Optional[bool] = False,
     cfg: Optional[TLMConfig] = None,
     handle_invalid_predictions: Literal["raise", "warn", None] = "raise",
 ) -> str:
@@ -208,6 +210,13 @@ def infer_on_example(
     input_ids, attention_mask = prepare_input_ids_and_attention_mask_for_generation(
         batch
     )
+
+    if embed: # JUANKY UPDATE
+        # print("Input shape ", input_ids.shape)
+        with torch.no_grad():
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True)
+        embedding = outputs.hidden_states[-1][:,-1,:]  # batch_size x seq_length * hidden_dim --> batch_size x hidden dim
+        return embedding  
 
     # Generate and decode
     stopping_criterion = make_eoc_stopping_criterion(input_ids, tokenizer)
